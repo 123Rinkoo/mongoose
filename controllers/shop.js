@@ -1,4 +1,5 @@
 const Product = require('../models/product');
+const Order=require('../models/order');
 
 exports.getProducts = (req, res, next) => {
   Product.find()
@@ -49,6 +50,7 @@ exports.getCart = (req, res, next) => {
     .populate('cart.items.productId')
     .execPopulate()   //ye likhne se .populate ek return krega promise and then we can use '.then' and '.catch'
     .then(user => {
+     
       const products=user.cart.items;
       res.render('shop/cart', {
         path: '/cart',
@@ -83,9 +85,23 @@ exports.postCartDeleteProduct = (req, res, next) => {
 };
 
 exports.postOrder = (req, res, next) => {
-  let fetchedCart;
   req.user
-    .addOrder()
+  .populate('cart.items.productId')
+  .execPopulate()  
+  .then(user => {
+    const products=user.cart.items.map(i=>{
+      return {quantity: i.quantity, product: i.productId}
+    });
+    const order=new Order({
+      user: {
+        name: req.user.name,
+        userId: req.user
+      },
+      products: products
+
+    })
+return order.save();
+  })
     .then(result => {
       res.redirect('/orders');
     })
@@ -93,8 +109,8 @@ exports.postOrder = (req, res, next) => {
 };
 
 exports.getOrders = (req, res, next) => {
-  req.user
-    .getOrders()
+  
+  Order.find({'user.userId': req.user._id})
     .then(orders => {
       res.render('shop/orders', {
         path: '/orders',
